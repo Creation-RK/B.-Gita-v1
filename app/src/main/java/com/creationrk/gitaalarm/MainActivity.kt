@@ -1,33 +1,19 @@
 package com.creationrk.gitaalarm
 
-import android.app.AlarmManager
-import android.app.PendingIntent
-import android.content.Context
+import android.Manifest
+import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,9 +22,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.creationrk.gitaalarm.content.ProgressRepository
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import java.util.Locale
 
 private val Sand = Color(0xFFF8F4EC)
@@ -50,126 +39,55 @@ private val Card = Color(0xFFF1EBE0)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7)
+        }
         setContent { GitaAlarmApp(this) }
     }
 }
 
 @Composable
-private fun GitaAlarmApp(context: Context) {
-    var enabled by remember { mutableStateOf(false) }
-    var alarmHour by remember { mutableStateOf(6) }
-    var alarmMinute by remember { mutableStateOf(0) }
-
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = Sand) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("namaste", color = Saffron, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(10.dp))
-                    Text("Begin your day.", color = Ink, fontSize = 34.sp, fontWeight = FontWeight.Light)
-                    Spacer(Modifier.height(34.dp))
-
-                    Text("TODAY'S SHLOKA", color = Muted, fontSize = 12.sp, letterSpacing = 1.8.sp)
-                    Spacer(Modifier.height(16.dp))
-                    Text("॥ २.४७ ॥", color = Saffron, fontSize = 17.sp)
-                    Spacer(Modifier.height(18.dp))
-                    Text(
-                        "कर्मण्येवाधिकारस्ते\nमा फलेषु कदाचन ।",
-                        color = Ink,
-                        fontSize = 28.sp,
-                        lineHeight = 42.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(18.dp))
-                    Text(
-                        "You have a right to your actions,\nnot to the fruits of your actions.",
-                        color = Muted,
-                        fontSize = 15.sp,
-                        lineHeight = 23.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(28.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Card).padding(18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text("Bhagavad Gita", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                            Text("Chapter 2 · Verse 47", color = Muted, fontSize = 13.sp)
-                        }
-                        Text("Day 1", color = Saffron, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Morning alarm", color = Muted, fontSize = 13.sp)
-                            Text(String.format(Locale.getDefault(), "%02d:%02d", alarmHour, alarmMinute), color = Ink, fontSize = 42.sp, fontWeight = FontWeight.Light)
-                        }
-                        Switch(checked = enabled, onCheckedChange = {
-                            enabled = it
-                            if (it) scheduleAlarm(context, alarmHour, alarmMinute) else cancelAlarm(context)
-                        })
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            alarmMinute += 5
-                            if (alarmMinute >= 60) { alarmMinute = 0; alarmHour = (alarmHour + 1) % 24 }
-                            enabled = true
-                            scheduleAlarm(context, alarmHour, alarmMinute)
-                        },
-                        modifier = Modifier.fillMaxWidth().height(54.dp),
-                        shape = RoundedCornerShape(18.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Ink)
-                    ) { Text("Set next alarm", color = Sand, fontSize = 15.sp) }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Tomorrow · ${SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date(System.currentTimeMillis() + 86_400_000L))}",
-                        modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Muted, fontSize = 12.sp
-                    )
+private fun GitaAlarmApp(activity: Activity) {
+    val scheduler = remember { AlarmScheduler(activity) }
+    var verse by remember { mutableStateOf(ProgressRepository(activity).current()) }
+    var enabled by remember { mutableStateOf(scheduler.isEnabled) }
+    var hour by remember { mutableIntStateOf(scheduler.hour) }
+    var minute by remember { mutableIntStateOf(scheduler.minute) }
+    var permissionMessage by remember { mutableStateOf<String?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) verse = ProgressRepository(activity).current() }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    MaterialTheme { Surface(Modifier.fillMaxSize(), color = Sand) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text("namaste", color = Saffron, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(10.dp)); Text("Begin your day.", color = Ink, fontSize = 34.sp, fontWeight = FontWeight.Light)
+                Spacer(Modifier.height(34.dp)); Text("TODAY'S SHLOKA", color = Muted, fontSize = 12.sp, letterSpacing = 1.8.sp)
+                Spacer(Modifier.height(16.dp)); Text("॥ ${verse.chapter}.${verse.verse} ॥", color = Saffron, fontSize = 17.sp)
+                Spacer(Modifier.height(18.dp)); Text(verse.sanskrit, color = Ink, fontSize = 25.sp, lineHeight = 39.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(18.dp)); Text(verse.meaning, color = Muted, fontSize = 15.sp, lineHeight = 23.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(28.dp)); Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Card).padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column { Text("Bhagavad Gita", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold); Text("Chapter ${verse.chapter} · Verse ${verse.verse} · ${verse.id}", color = Muted, fontSize = 13.sp) }
+                    Text("Offline", color = Saffron, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
             }
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) { Text("Morning alarm", color = Muted, fontSize = 13.sp); Text(String.format(Locale.getDefault(), "%02d:%02d", hour, minute), color = Ink, fontSize = 42.sp, fontWeight = FontWeight.Light) }
+                    Switch(checked = enabled, onCheckedChange = { turnOn ->
+                        if (!turnOn) { scheduler.cancel(); enabled = false }
+                        else if (scheduler.scheduleDaily(hour, minute)) enabled = true
+                        else { permissionMessage = "Allow Alarms & reminders to set your morning alarm."; activity.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)) }
+                    })
+                }
+                Spacer(Modifier.height(12.dp)); Button(onClick = {
+                    if (scheduler.scheduleTestAlarm()) enabled = true else { permissionMessage = "Allow Alarms & reminders, then tap again."; activity.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)) }
+                }, Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.buttonColors(containerColor = Ink)) { Text("Test alarm in 5 minutes", color = Sand, fontSize = 15.sp) }
+                permissionMessage?.let { Spacer(Modifier.height(8.dp)); Text(it, color = Saffron, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
+            }
         }
-    }
-}
-
-private fun scheduleAlarm(context: Context, hour: Int, minute: Int) {
-    val alarmManager = context.getSystemService(AlarmManager::class.java)
-    if (!alarmManager.canScheduleExactAlarms()) return
-
-    val intent = Intent(context, AlarmReceiver::class.java)
-    val pending = PendingIntent.getBroadcast(
-        context,
-        1001,
-        intent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-    val calendar = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, hour)
-        set(Calendar.MINUTE, minute)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-        if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
-    }
-    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pending)
-}
-
-private fun cancelAlarm(context: Context) {
-    val intent = Intent(context, AlarmReceiver::class.java)
-    val pending = PendingIntent.getBroadcast(
-        context,
-        1001,
-        intent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-    context.getSystemService(AlarmManager::class.java).cancel(pending)
+    } }
 }

@@ -6,28 +6,31 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
+/** Starts the active verse; it deliberately does not advance progress. */
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        val verse = com.creationrk.gitaalarm.content.ProgressRepository(context).current()
+        AlarmAudioPlayer.play(context, verse.audioResId)
         createNotificationChannel(context)
-        val openApp = PendingIntent.getActivity(context, 2001, Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val alarmIntent = Intent(context, AlarmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val openAlarm = PendingIntent.getActivity(context, 2001, alarmIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("namaste")
-            .setContentText("Begin your day. Your shloka is ready.")
-            .setStyle(NotificationCompat.BigTextStyle().bigText("कर्मण्येवाधिकारस्ते मा फलेषु कदाचन ।"))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentText("Begin your day. ${verse.id} is ready.")
+            .setStyle(NotificationCompat.BigTextStyle().bigText(verse.sanskrit))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setAutoCancel(true)
-            .setContentIntent(openApp)
+            .setOngoing(true)
+            .setFullScreenIntent(openAlarm, true)
+            .setContentIntent(openAlarm)
             .build()
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
-        playBundledAudioIfPresent(context)
+        try { NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification) } catch (_: SecurityException) { }
+        context.startActivity(alarmIntent)
     }
 
     private fun createNotificationChannel(context: Context) {
@@ -37,16 +40,6 @@ class AlarmReceiver : BroadcastReceiver() {
                 description = "Daily Bhagavad Gita alarm"
             })
         }
-    }
-
-    private fun playBundledAudioIfPresent(context: Context) {
-        val resourceId = context.resources.getIdentifier("gita_02_47", "raw", context.packageName)
-        if (resourceId == 0) return
-        val player = MediaPlayer.create(context, resourceId) ?: return
-        player.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-        player.setOnCompletionListener { it.release() }
-        player.setOnErrorListener { mp, _, _ -> mp.release(); true }
-        player.start()
     }
 
     companion object {
