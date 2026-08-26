@@ -9,7 +9,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,8 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,7 +56,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun GitaAlarmApp(context: Context) {
-    var enabled by remember { mutableStateOf(true) }
+    var enabled by remember { mutableStateOf(false) }
     var alarmHour by remember { mutableStateOf(6) }
     var alarmMinute by remember { mutableStateOf(0) }
 
@@ -127,7 +124,8 @@ private fun GitaAlarmApp(context: Context) {
                         onClick = {
                             alarmMinute += 5
                             if (alarmMinute >= 60) { alarmMinute = 0; alarmHour = (alarmHour + 1) % 24 }
-                            if (enabled) scheduleAlarm(context, alarmHour, alarmMinute)
+                            enabled = true
+                            scheduleAlarm(context, alarmHour, alarmMinute)
                         },
                         modifier = Modifier.fillMaxWidth().height(54.dp),
                         shape = RoundedCornerShape(18.dp),
@@ -146,19 +144,32 @@ private fun GitaAlarmApp(context: Context) {
 
 private fun scheduleAlarm(context: Context, hour: Int, minute: Int) {
     val alarmManager = context.getSystemService(AlarmManager::class.java)
-    val intent = Intent(context, MainActivity::class.java)
-    val pending = PendingIntent.getActivity(context, 1001, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    if (!alarmManager.canScheduleExactAlarms()) return
+
+    val intent = Intent(context, AlarmReceiver::class.java)
+    val pending = PendingIntent.getBroadcast(
+        context,
+        1001,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
     val calendar = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, hour)
         set(Calendar.MINUTE, minute)
         set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
         if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
     }
     alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pending)
 }
 
 private fun cancelAlarm(context: Context) {
-    val intent = Intent(context, MainActivity::class.java)
-    val pending = PendingIntent.getActivity(context, 1001, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    val intent = Intent(context, AlarmReceiver::class.java)
+    val pending = PendingIntent.getBroadcast(
+        context,
+        1001,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
     context.getSystemService(AlarmManager::class.java).cancel(pending)
 }
