@@ -6,28 +6,16 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        val openApp = PendingIntent.getActivity(
-            context,
-            2001,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val manager = context.getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Morning shloka", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "Daily Bhagavad Gita alarm"
-                }
-            )
-        }
-
+        createNotificationChannel(context)
+        val openApp = PendingIntent.getActivity(context, 2001, Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("namaste")
@@ -38,8 +26,27 @@ class AlarmReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
             .setContentIntent(openApp)
             .build()
-
         NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        playBundledAudioIfPresent(context)
+    }
+
+    private fun createNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Morning shloka", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Daily Bhagavad Gita alarm"
+            })
+        }
+    }
+
+    private fun playBundledAudioIfPresent(context: Context) {
+        val resourceId = context.resources.getIdentifier("gita_02_47", "raw", context.packageName)
+        if (resourceId == 0) return
+        val player = MediaPlayer.create(context, resourceId) ?: return
+        player.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+        player.setOnCompletionListener { it.release() }
+        player.setOnErrorListener { mp, _, _ -> mp.release(); true }
+        player.start()
     }
 
     companion object {
